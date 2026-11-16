@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>صيدلية نبيله (اصناف المستورد) - مزامنة حية وتاريخ الصلاحية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs for Realtime Cloud Sync -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #2563eb;
+            --secondary: #0f766e;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #cbd5e1;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+        }
+        * {
+            box-sizing: border-box;
+            font-family: 'Cairo', Tahoma, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            padding-bottom: 60px;
+        }
+        .trial-banner {
+            background: linear-gradient(90deg, #b45309, #d97706);
+            color: #fff;
+            padding: 8px 16px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .trial-banner.activated {
+            background: linear-gradient(90deg, #065f46, #059669);
+        }
+        .trial-banner.revoked {
+            background: linear-gradient(90deg, #991b1b, #dc2626);
+        }
+        .sync-status {
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+            color: #fff;
+            padding: 14px 18px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        .header h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+        }
+        .header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: space-between;
+        }
+        @media (min-width: 768px) {
+            .header-actions { width: auto; }
+        }
+        .staff-bar {
+            background: rgba(255,255,255,0.15);
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+        .staff-bar label {
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        .staff-bar select {
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 700;
+            color: #1e3a8a;
+            background: #fff;
+        }
+        .btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.88rem;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            touch-action: manipulation;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-light { background: #fff; color: #1e3a8a; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-primary { background: var(--primary-light); color: #fff; }
+        .btn-warning { background: var(--warning); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-outline { background: #f8fafc; border: 1.5px solid var(--primary-light); color: var(--primary-light); }
+        .btn-sm { padding: 5px 9px; font-size: 0.8rem; border-radius: 6px; }
+
+        .container {
+            max-width: 1240px;
+            margin: 16px auto;
+            padding: 0 12px;
+        }
+
+        .admin-protected { display: none !important; }
+        .admin-protected.visible { display: block !important; }
+        .admin-protected-inline { display: none !important; }
+        .admin-protected-inline.visible { display: inline-flex !important; }
+
+        .stats-filter-bar {
+            background: var(--card);
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            border: 1px solid var(--border);
+        }
+        .filter-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .pill {
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+        .pill.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .stat-card {
+            background: var(--card);
+            padding: 14px 18px;
+            border-radius: 12px;
+            border-right: 5px solid var(--primary);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+        .stat-card.sale-card { border-right-color: var(--success); }
+        .stat-card.purchase-card { border-right-color: var(--warning); }
+        .stat-card h3 { font-size: 0.9rem; color: var(--muted); margin-bottom: 4px; }
+        .stat-card .val { font-size: 1.5rem; font-weight: 800; color: var(--text); }
+        .stat-card .sub { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+
+        .admin-mgmt-box {
+            background: #fffbeb;
+            border: 2px solid #f59e0b;
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 14px;
+            background: var(--card);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-align: center;
+            color: var(--text);
+            transition: 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+            box-shadow: 0 4px 10px rgba(30,58,138,0.25);
+        }
+        .tab-btn.admin-tab { display: none; }
+        .tab-btn.admin-tab.visible { display: block; }
+
+        .panel {
+            display: none;
+            background: var(--card);
+            padding: 18px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .panel.active { display: block; }
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+        }
+        .form-group label {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+        .form-group input, .form-group select {
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.96rem;
+            font-weight: 600;
+            background: #fff;
+            width: 100%;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+        }
+        .inline-add {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        .inline-add select, .inline-add input { flex: 1; min-width: 0; }
+
+        .search-select-container {
+            position: relative;
+            flex: 1;
+        }
+        .search-select-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.96rem;
+            font-weight: 600;
+            background: #fff;
+        }
+        .search-select-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            background: #fff;
+            border: 1.5px solid var(--primary-light);
+            border-radius: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 600;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            margin-top: 3px;
+        }
+        .search-select-dropdown.active { display: block; }
+        .search-select-option {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.92rem;
+            font-weight: 700;
+        }
+        .search-select-option:hover { background: #eff6ff; color: var(--primary); }
+        .search-select-option .meta { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+
+        .unit-group {
+            display: flex;
+            gap: 6px;
+        }
+        .unit-btn {
+            flex: 1;
+            padding: 10px 6px;
+            border: 2px solid var(--border);
+            background: #f8fafc;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: center;
+        }
+        .unit-btn.active {
+            background: #eff6ff;
+            border-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .cart-section {
+            margin-top: 16px;
+            background: #f8fafc;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+        .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .cart-total-banner {
+            background: #0f172a;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: right;
+            white-space: nowrap;
+        }
+        th {
+            background: #1e3a8a;
+            color: #fff;
+            font-weight: 700;
+        }
+        tr:nth-child(even) { background: #f8fafc; }
+        .badge {
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .badge-sale { background: #dcfce7; color: #166534; }
+        .badge-purchase { background: #fef3c7; color: #92400e; }
+        .action-btns {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.68);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-backdrop.active { display: flex; }
+        .modal {
+            background: #fff;
+            padding: 20px;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 460px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+        }
+        .modal h3 { margin-bottom: 14px; color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; font-size: 1.15rem; }
+
+        .lock-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            z-index: 2500;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #fff;
+        }
+        .lock-screen.active { display: flex; }
+        .lock-card {
+            background: #fff;
+            color: var(--text);
+            padding: 28px 24px;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 460px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-top: 8px solid var(--warning);
+        }
+        .machine-box {
+            background: #f1f5f9;
+            border: 2px dashed var(--primary);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: var(--primary);
+            margin: 12px 0;
+            user-select: all;
+        }
+
+        .confirm-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.72);
+            z-index: 1500;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .confirm-backdrop.active { display: flex; }
+        .confirm-box {
+            background: #fff;
+            padding: 22px;
+            border-radius: 14px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+            border-top: 6px solid var(--warning);
+        }
+        .confirm-box h4 { font-size: 1.15rem; color: var(--text); margin-bottom: 10px; }
+        .confirm-box p { font-size: 0.95rem; color: var(--muted); margin-bottom: 18px; line-height: 1.5; font-weight: 600; }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #0f172a;
+            color: #fff;
+            padding: 12px 22px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.92rem;
+            display: none;
+            z-index: 2000;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<div class="trial-banner" id="licenseBanner">
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span id="licenseStatusText">⏳ جارٍ التحقق من الترخيص والسحابة...</span>
+        <span class="sync-status" id="syncStatusBadge">⚡ متصل بالسحابة (مزامنة حية نشطة)</span>
+    </div>
+    <button type="button" class="btn btn-light btn-sm" id="openActivateBtn" onclick="openLicenseModal()">🔑 تفعيل النسخة الدائمة</button>
+</div>
+
+<header class="header">
+    <h1>💊 صيدلية نبيله (اصناف المستورد)</h1>
+    <div class="header-actions">
+        <div class="staff-bar">
+            <label>Doctor / Staff:</label>
+            <select id="globalStaffSelect" onchange="syncStaffSelects(this.value)"></select>
+            <button type="button" class="btn btn-light btn-sm" onclick="openModal('add_staff')">+ إضافة</button>
+            <button type="button" class="btn btn-warning btn-sm admin-protected-inline" onclick="openModal('edit_staff')">✏️</button>
+            <button type="button" class="btn btn-danger btn-sm admin-protected-inline" onclick="deleteCurrentStaff()">🗑️</button>
+        </div>
+        <button type="button" class="btn" id="adminToggleBtn" onclick="toggleAdminMode()" style="background:#7c3aed; color:#fff;">🔒 دخول المدير (Admin)</button>
+    </div>
+</header>
+
+<div class="container">
+    <div id="adminMgmtBox" class="admin-mgmt-box admin-protected">
+        <div style="flex:1; min-width:240px;">
+            <h4 style="color:#b45309; margin-bottom:4px; font-weight:800;">⚙️ إعدادات أمان المدير (Admin Settings)</h4>
+            <p style="color:var(--muted); font-size:0.85rem; font-weight:600; margin:0;">تغيير الرقم السري الخاص بوضع المدير:</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="password" id="newAdminPinInput" placeholder="الرمز الجديد (4 أرقام)" style="padding:8px; border-radius:8px; border:1px solid #f59e0b; width:180px; font-weight:800; text-align:center;">
+            <button type="button" class="btn btn-warning" onclick="changeAdminPin()">💾 حفظ الرمز</button>
+        </div>
+    </div>
+
+    <div id="adminStatsContainer" class="admin-protected">
+        <div class="stats-filter-bar">
+            <div style="font-weight:800; color:var(--primary);">📅 فلتر تاريخ إجمالي البيع والمشتريات (خاص بالمدير):</div>
+            <div class="filter-pills">
+                <button type="button" class="pill" data-period="day" onclick="setPeriodFilter('day')">اليوم</button>
+                <button type="button" class="pill" data-period="week" onclick="setPeriodFilter('week')">بالأسبوع</button>
+                <button type="button" class="pill active" data-period="month" onclick="setPeriodFilter('month')">بالشهر</button>
+                <button type="button" class="pill" data-period="year" onclick="setPeriodFilter('year')">بالسنة</button>
+                <button type="button" class="pill" data-period="all" onclick="setPeriodFilter('all')">كل الفترات</button>
+                <input type="month" id="customMonthPicker" onchange="setPeriodFilter('custom_month')" style="padding:5px 10px; border-radius:8px; border:1px solid var(--border); font-weight:700;">
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card sale-card">
+                <h3>إجمالي البيع (Sale)</h3>
+                <div class="val" id="statTotalSales">0 ج.م</div>
+                <div class="sub" id="statSalesCount">0 عملية بيع في الفترة المحددة</div>
+            </div>
+            <div class="stat-card purchase-card">
+                <h3>إجمالي المشتريات (Purchase)</h3>
+                <div class="val" id="statTotalPurchases">0 ج.م</div>
+                <div class="sub" id="statPurchasesCount">0 فاتورة شراء في الفترة المحددة</div>
+            </div>
+            <div class="stat-card">
+                <h3>عدد الأصناف المسجلة</h3>
+                <div class="val" id="statItemsCount">0 صنف</div>
+                <div class="sub">وضع المدير مفعّل</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button type="button" class="tab-btn active" id="tabBtnSale" onclick="switchTab('sale')">sale</button>
+        <button type="button" class="tab-btn" id="tabBtnPurchase" onclick="switchTab('purchase')">purchase</button>
+        <button type="button" class="tab-btn admin-tab" id="tabBtnStock" onclick="switchTab('stock')">المخزون والأصناف (Stock)</button>
+        <button type="button" class="tab-btn admin-tab" id="tabBtnReports" onclick="switchTab('reports')">السجل والتصدير لإكسيل</button>
+    </div>
+
+    <!-- TAB 1: SALE -->
+    <div id="tab-sale" class="panel active">
+        <div class="panel-title">
+            <span>sale (إدخال صنف أو عدة أصناف في فاتورة واحدة)</span>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>🔍 اسم الصنف (بحث واختيار من نفس الخانة)</label>
+                <div class="inline-add">
+                    <div class="search-select-container">
+                        <input type="text" id="saleSearchSelect" class="search-select-input" placeholder="اكتب للبحث أو اختر الصنف..." autocomplete="off" onfocus="openSearchSelectDropdown('sale')" oninput="filterSearchSelectDropdown('sale')">
+                        <div class="search-select-dropdown" id="saleSearchDropdown"></div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="openModal('add_item')">+ صنف</button>
+                    <button class="btn btn-warning btn-sm admin-protected-inline" type="button" onclick="openEditSelectedItem('sale')">✏️</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>اسم المورد (Supplier)</label>
+                <div class="inline-add">
+                    <select id="saleSupplierSelect"></select>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="openModal('add_supplier')">+ مورد</button>
+                    <button class="btn btn-warning btn-sm admin-protected-inline" type="button" onclick="openModal('edit_supplier_sale')">✏️</button>
+                    <button class="btn btn-danger btn-sm admin-protected-inline" type="button" onclick="deleteSupplier('saleSupplierSelect')">🗑️</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>الوحدة المباعة (Box / Strip / Tablet)</label>
+                <div class="unit-group">
+                    <button type="button" class="unit-btn active" id="saleUnitBox" onclick="setSaleUnit('Box')">Box (علبة)</button>
+                    <button type="button" class="unit-btn" id="saleUnitStrip" onclick="setSaleUnit('Strip')">Strip (شريط)</button>
+                    <button type="button" class="unit-btn" id="saleUnitTablet" onclick="setSaleUnit('Tablet')">Tablet (قرص)</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>الكمية (Quantity)</label>
+                <input type="number" id="saleQty" value="1" min="1" step="1" oninput="calcSaleTotal()">
+            </div>
+
+            <div class="form-group">
+                <label>سعر البيع للوحدة (Sale Price)</label>
+                <input type="number" id="salePrice" placeholder="ادخل سعر البيع..." min="0" step="0.5" oninput="calcSaleTotal()">
+            </div>
+
+            <div class="form-group">
+                <label>تاريخ الصلاحية (Expiry Date)</label>
+                <input type="date" id="saleExpiryDate">
+            </div>
+
+            <div class="form-group">
+                <label>إجمالي الصنف الحالي</label>
+                <input type="text" id="saleTotalDisplay" readonly style="background:#f1f5f9; font-weight:800; color:var(--success);">
+            </div>
+
+            <div class="form-group">
+                <label>Doctor / Staff</label>
+                <select id="saleStaffSelect" onchange="syncStaffSelects(this.value)"></select>
+            </div>
+
+            <div class="form-group">
+                <label>التاريخ</label>
+                <input type="date" id="saleDate">
+            </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+            <button type="button" class="btn btn-primary" style="flex:1; min-width:220px; padding:12px; font-size:1rem;" onclick="addToSaleCart()">➕ إضافة الصنف إلى فاتورة البيع الحالية (Add to Invoice)</button>
+            <button type="button" class="btn btn-success" style="flex:1; min-width:220px; padding:12px; font-size:1rem;" onclick="submitSaleInvoice()">✅ حفظ فاتورة البيع بالكامل (Save Invoice)</button>
+        </div>
+
+        <div class="cart-section" id="saleCartSection">
+            <div class="cart-header">
+                <div style="font-weight:800; color:var(--primary);">🧾 أصناف فاتورة البيع الحالية (<span id="saleCartCount">0</span> صنف):</div>
+                <div class="cart-total-banner">إجمالي الفاتورة: <span id="saleCartGrandTotal">0</span> ج.م</div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>المورد</th>
+                            <th>الوحدة</th>
+                            <th>الكمية</th>
+                            <th>سعر الوحدة</th>
+                            <th>تاريخ الصلاحية</th>
+                            <th>الإجمالي</th>
+                            <th>حذف من الفاتورة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="saleCartBody">
+                        <tr><td colspan="8" style="text-align:center; color:var(--muted);">يمكنك إضافة أكثر من صنف بالضغط على "إضافة الصنف إلى فاتورة البيع" أو الضغط على "حفظ الفاتورة" مباشرة لصنف واحد.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: PURCHASE -->
+    <div id="tab-purchase" class="panel">
+        <div class="panel-title">
+            <span>purchase (إدخال صنف أو عدة أصناف في فاتورة شراء واحدة)</span>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>🔍 اسم الصنف (بحث واختيار من نفس الخانة)</label>
+                <div class="inline-add">
+                    <div class="search-select-container">
+                        <input type="text" id="purSearchSelect" class="search-select-input" placeholder="اكتب للبحث أو اختر الصنف..." autocomplete="off" onfocus="openSearchSelectDropdown('pur')" oninput="filterSearchSelectDropdown('pur')">
+                        <div class="search-select-dropdown" id="purSearchDropdown"></div>
+                    </div>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="openModal('add_item')">+ صنف</button>
+                    <button class="btn btn-warning btn-sm admin-protected-inline" type="button" onclick="openEditSelectedItem('pur')">✏️</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>اسم المورد (Supplier)</label>
+                <div class="inline-add">
+                    <select id="purSupplierSelect"></select>
+                    <button class="btn btn-outline btn-sm" type="button" onclick="openModal('add_supplier')">+ مورد</button>
+                    <button class="btn btn-warning btn-sm admin-protected-inline" type="button" onclick="openModal('edit_supplier_pur')">✏️</button>
+                    <button class="btn btn-danger btn-sm admin-protected-inline" type="button" onclick="deleteSupplier('purSupplierSelect')">🗑️</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>وحدة الشراء (Box / Strip / Tablet)</label>
+                <div class="unit-group">
+                    <button type="button" class="unit-btn active" id="purUnitBox" onclick="setPurchaseUnit('Box')">Box (علبة)</button>
+                    <button type="button" class="unit-btn" id="purUnitStrip" onclick="setPurchaseUnit('Strip')">Strip (شريط)</button>
+                    <button type="button" class="unit-btn" id="purUnitTablet" onclick="setPurchaseUnit('Tablet')">Tablet (قرص)</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>الكمية المشتراة (Quantity)</label>
+                <input type="number" id="purQty" value="1" min="1" step="1" oninput="calcPurchaseTotal()">
+            </div>
+
+            <div class="form-group">
+                <label>سعر الشراء للوحدة (Purchase Price)</label>
+                <input type="number" id="purPrice" placeholder="ادخل سعر الشراء..." min="0" step="0.5" oninput="calcPurchaseTotal()">
+            </div>
+
+            <div class="form-group">
+                <label>تاريخ الصلاحية (Expiry Date)</label>
+                <input type="date" id="purExpiryDate">
+            </div>
+
+            <div class="form-group">
+                <label>إجمالي الصنف الحالي</label>
+                <input type="text" id="purTotalDisplay" readonly style="background:#f1f5f9; font-weight:800; color:var(--warning);">
+            </div>
+
+            <div class="form-group">
+                <label>Doctor / Staff</label>
+                <select id="purStaffSelect" onchange="syncStaffSelects(this.value)"></select>
+            </div>
+
+            <div class="form-group">
+                <label>التاريخ</label>
+                <input type="date" id="purDate">
+            </div>
+        </div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:10px;">
+            <button type="button" class="btn btn-warning" style="flex:1; min-width:220px; padding:12px; font-size:1rem;" onclick="addToPurCart()">➕ إضافة الصنف إلى فاتورة الشراء الحالية (Add to Invoice)</button>
+            <button type="button" class="btn btn-primary" style="flex:1; min-width:220px; padding:12px; font-size:1rem;" onclick="submitPurchaseInvoice()">📦 حفظ فاتورة الشراء بالكامل (Save Invoice)</button>
+        </div>
+
+        <div class="cart-section" id="purCartSection">
+            <div class="cart-header">
+                <div style="font-weight:800; color:var(--primary);">🧾 أصناف فاتورة الشراء الحالية (<span id="purCartCount">0</span> صنف):</div>
+                <div class="cart-total-banner">إجمالي الفاتورة: <span id="purCartGrandTotal">0</span> ج.م</div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>المورد</th>
+                            <th>الوحدة</th>
+                            <th>الكمية</th>
+                            <th>سعر الشراء</th>
+                            <th>تاريخ الصلاحية</th>
+                            <th>الإجمالي</th>
+                            <th>حذف من الفاتورة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="purCartBody">
+                        <tr><td colspan="8" style="text-align:center; color:var(--muted);">يمكنك إضافة أكثر من صنف بالضغط على "إضافة الصنف إلى فاتورة الشراء" أو الضغط على "حفظ الفاتورة" مباشرة لصنف واحد.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-stock" class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div class="panel-title" style="margin:0; border:none;">أرصدة وأصناف المستورد (إدارة المدير)</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button type="button" class="btn btn-primary" onclick="openModal('add_item')">+ إضافة صنف جديد</button>
+                <button type="button" class="btn btn-success" onclick="exportBackup()">💾 حفظ نسخة احتياطية (Backup)</button>
+                <button type="button" class="btn btn-warning" onclick="document.getElementById('restoreInput').click()">📂 استرجاع الداتا (Restore)</button>
+                <input type="file" id="restoreInput" accept=".json" style="display:none" onchange="importBackup(event)">
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم الصنف</th>
+                        <th>المورد الافتراضي</th>
+                        <th>تقسيمة العلبة (شريط × قرص)</th>
+                        <th>الرصيد الحالي (بالعلبة)</th>
+                        <th>آخر سعر شراء</th>
+                        <th>آخر سعر بيع</th>
+                        <th>إجراءات (تعديل / حذف)</th>
+                    </tr>
+                </thead>
+                <tbody id="stockTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="tab-reports" class="panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+            <div class="panel-title" style="margin:0; border:none;">سجل الحركات والفواتير (إدارة المدير)</div>
+            <button type="button" class="btn btn-success" onclick="exportCSV()">📊 تصدير الجدول إلى شيت إكسيل (CSV)</button>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم الفاتورة</th>
+                        <th>التاريخ</th>
+                        <th>النوع</th>
+                        <th>اسم الصنف</th>
+                        <th>المورد (Supplier)</th>
+                        <th>الوحدة</th>
+                        <th>الكمية</th>
+                        <th>سعر الوحدة</th>
+                        <th>تاريخ الصلاحية</th>
+                        <th>الإجمالي</th>
+                        <th>Doctor / Staff</th>
+                        <th>إجراءات (تعديل / حذف)</th>
+                    </tr>
+                </thead>
+                <tbody id="txTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="lock-screen" id="licenseLockScreen">
+    <div class="lock-card">
+        <h2 style="color:var(--primary); margin-bottom:8px;" id="lockScreenTitle">🔑 تفعيل النسخة الكاملة للسيستم</h2>
+        <p style="color:var(--muted); font-size:0.92rem; font-weight:600; line-height:1.6;" id="lockScreenSubtitle">
+            لتفعيل السيستم بشكل دائم على هذا الجهاز، يرجى إرسال <strong>كود تعريف الجهاز (Machine ID)</strong> التالي إلى مطور السيستم للحصول على مفتاح التفعيل الخاص بك:
+        </p>
+        <div class="machine-box" id="machineIdDisplay">NB-0000</div>
+        <div class="form-group" style="text-align:right; margin-bottom:14px;">
+            <label>أدخل كود التفعيل (Activation Key):</label>
+            <input type="text" id="activationKeyInput" placeholder="مثال: ACT-XXXX" style="text-align:center; font-size:1.1rem; font-weight:800; letter-spacing:1px;">
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button type="button" class="btn btn-success" style="flex:1; padding:12px;" onclick="verifyActivationKey()">✅ تنفيذ</button>
+            <button type="button" class="btn btn-danger" id="closeLockScreenBtn" style="flex:1; padding:12px;" onclick="closeLicenseModal()">إغلاق (متابعة التجربة)</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+        <h3 id="modalTitle">إضافة / تعديل</h3>
+        <div id="modalBody"></div>
+        <div style="display:flex; gap:10px; margin-top:18px;">
+            <button type="button" class="btn btn-primary" style="flex:1;" onclick="saveModalData()">💾 حفظ</button>
+            <button type="button" class="btn btn-danger" style="flex:1;" onclick="closeModal()">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="pinModalBackdrop">
+    <div class="modal" style="max-width:360px; text-align:center;">
+        <h3>🔒 دخول وضع المدير (Admin)</h3>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px; font-weight:600;">أدخل الرمز السري للمدير لإظهار الإحصائيات والمخزون والسجل وأزرار التعديل والحذف:</p>
+        <input type="password" id="pinInputBox" inputmode="numeric" placeholder="الرمز السري (الافتراضي 1234)" style="width:100%; padding:12px; font-size:1.2rem; text-align:center; border:2px solid var(--border); border-radius:8px; margin-bottom:14px; font-weight:800;">
+        <div style="display:flex; gap:10px;">
+            <button type="button" class="btn btn-primary" style="flex:1;" onclick="verifyAdminPin()">دخول</button>
+            <button type="button" class="btn btn-danger" style="flex:1;" onclick="closePinModal()">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<div class="confirm-backdrop" id="alertBackdrop">
+    <div class="confirm-box" style="border-top-color: var(--danger);">
+        <h4 id="alertTitle">تنبيه</h4>
+        <p id="alertMessage"></p>
+        <button type="button" class="btn btn-primary" style="width:100%; padding:10px;" onclick="closeCustomAlert()">حسناً</button>
+    </div>
+</div>
+
+<div class="confirm-backdrop" id="confirmBackdrop">
+    <div class="confirm-box">
+        <h4 id="confirmTitle">⚠️ تأكيد العملية</h4>
+        <p id="confirmMessage">هل أنت متأكد من تنفيذ هذه العملية؟</p>
+        <div style="display:flex; gap:10px;">
+            <button type="button" class="btn btn-success" style="flex:1; padding:10px;" id="confirmYesBtn">نعم، تأكيد</button>
+            <button type="button" class="btn btn-danger" style="flex:1; padding:10px;" onclick="closeConfirm()">إلغاء وتراجع</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toastMsg"></div>
+
+<script>
+    // --- ROBUST FIREBASE REALTIME CLOUD SYNC CONFIGURATION ---
+    const firebaseConfig = {
+        databaseURL: "https://nabila-pharmacy-sync-default-rtdb.firebaseio.com/"
+    };
+
+    let db = null;
+    let isCloudConnected = false;
+    let isSyncingFromCloud = false;
+
+    try {
+        if (typeof firebase !== 'undefined') {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.database();
+            isCloudConnected = true;
+        }
+    } catch(e) {
+        console.warn("Cloud connection notice:", e);
+    }
+
+    const STORAGE_KEY = 'NABILA_IMPORTED_POS_V13_CLOUD';
+    const TRIAL_MAX_INVOICES = 5;
+    const TRIAL_MAX_HOURS = 24;
+
+    let state = {
+        items: [
+            { id: '1', name: 'Panadol Advance Imported', supplier: 'مستودع النيل', stripsPerBox: 2, tabsPerStrip: 12, stockBoxes: 5, lastPurchasePrice: 90, lastSalePrice: 120 },
+            { id: '2', name: 'Centrum Lutein 100 Tab', supplier: 'مستودع الأمل', stripsPerBox: 1, tabsPerStrip: 100, stockBoxes: 3, lastPurchasePrice: 450, lastSalePrice: 550 }
+        ],
+        suppliers: ['مستودع النيل', 'مستودع الأمل', 'مستودع الجمهورية'],
+        staff: ['د. أحمد محمد', 'د. محمد', 'مساعد الصيدلية'],
+        selectedStaff: 'د. أحمد محمد',
+        transactions: [],
+        periodFilter: 'month',
+        adminPin: '1234',
+        isAdmin: false,
+        license: {
+            machineId: '',
+            firstRunTime: null,
+            invoicesUsed: 0,
+            isActivated: false,
+            isRevoked: false,
+            activationKey: '',
+            expiresAt: null
+        }
+    };
+
+    let currentSaleUnit = 'Box';
+    let currentPurUnit = 'Box';
+    let selectedSaleItemName = '';
+    let selectedPurItemName = '';
+    let saleCart = [];
+    let purCart = [];
+    let activeModalType = null;
+    let editingTargetId = null;
+    let pendingConfirmAction = null;
+
+    function generateMachineId() {
+        const rand = Math.floor(1000 + Math.random() * 9000);
+        return 'NB-' + rand;
+    }
+
+    function checkTrialAndLicense() {
+        if (!state.license) {
+            state.license = { machineId: generateMachineId(), firstRunTime: Date.now(), invoicesUsed: 0, isActivated: false, isRevoked: false, activationKey: '', expiresAt: null };
+        }
+        if (!state.license.machineId) state.license.machineId = generateMachineId();
+        if (!state.license.firstRunTime) state.license.firstRunTime = Date.now();
+
+        document.getElementById('machineIdDisplay').textContent = state.license.machineId;
+
+        const banner = document.getElementById('licenseBanner');
+        const statusText = document.getElementById('licenseStatusText');
+        const activateBtn = document.getElementById('openActivateBtn');
+        const syncBadge = document.getElementById('syncStatusBadge');
+
+        if (isCloudConnected) {
+            syncBadge.textContent = '⚡ متصل بالسحابة (مزامنة حية نشطة)';
+            syncBadge.style.color = '#4ade80';
+        } else {
+            syncBadge.textContent = '⚠️ يعمل محلياً (غير متصل بالإنترنت)';
+            syncBadge.style.color = '#f87171';
+        }
+
+        if (state.license.isRevoked) {
+            banner.className = 'trial-banner revoked';
+            statusText.textContent = '⛔ تم إيقاف الترخيص لهذا الجهاز من قبل المطور!';
+            document.getElementById('lockScreenTitle').textContent = '⛔ تم إيقاف ترخيص السيستم';
+            document.getElementById('lockScreenSubtitle').innerHTML = 'تم تعطيل هذا الإصدار مؤقتاً. يرجى التواصل مع مطور السيستم لإعادة التفعيل بعد تسوية المستحقات:';
+            document.getElementById('closeLockScreenBtn').style.display = 'none';
+            document.getElementById('licenseLockScreen').classList.add('active');
+            return false;
+        }
+
+        if (state.license.isActivated) {
+            if (state.license.expiresAt && Date.now() > state.license.expiresAt) {
+                state.license.isActivated = false;
+                saveState();
+            } else {
+                banner.className = 'trial-banner activated';
+                let expStr = state.license.expiresAt ? ' (ينتهي في: ' + new Date(state.license.expiresAt).toLocaleDateString('ar-EG') + ')' : ' (دائم)';
+                statusText.textContent = '✅ نسخة مرخصة ومفعلة' + expStr + ' [رقم الجهاز: ' + state.license.machineId + ']';
+                activateBtn.style.display = 'inline-flex';
+                document.getElementById('licenseLockScreen').classList.remove('active');
+                return true;
+            }
+        }
+
+        const elapsedHours = (Date.now() - state.license.firstRunTime) / (1000 * 60 * 60);
+        const remainingHours = Math.max(0, Math.ceil(TRIAL_MAX_HOURS - elapsedHours));
+        const remainingInvoices = Math.max(0, TRIAL_MAX_INVOICES - (state.license.invoicesUsed || 0));
+
+        if (remainingHours <= 0 || remainingInvoices <= 0) {
+            banner.className = 'trial-banner';
+            statusText.textContent = '⛔ انتهت الفترة التجريبية أو انتهى الترخيص!';
+            document.getElementById('lockScreenTitle').textContent = '⛔ انتهت صلاحية النسخة التجريبية / الترخيص';
+            document.getElementById('lockScreenSubtitle').innerHTML = 'لقد انتهت المدة أو الفواتير المسموحة. للتجديد، أرسل <strong>كود الجهاز (Machine ID)</strong> لمطور السيستم للحصول على كود التفعيل الجديد:';
+            document.getElementById('closeLockScreenBtn').style.display = 'none';
+            document.getElementById('licenseLockScreen').classList.add('active');
+            return false;
+        } else {
+            banner.className = 'trial-banner';
+            statusText.textContent = '⏳ نسخة تجريبية (Trial): متبقي ' + remainingInvoices + ' فواتير أو ' + remainingHours + ' ساعة للتجربة (كود الجهاز: ' + state.license.machineId + ')';
+            return true;
+        }
+    }
+
+    function openLicenseModal() {
+        document.getElementById('machineIdDisplay').textContent = state.license.machineId;
+        document.getElementById('closeLockScreenBtn').style.display = 'inline-flex';
+        document.getElementById('licenseLockScreen').classList.add('active');
+    }
+
+    function closeLicenseModal() {
+        if (!checkTrialAndLicense()) return;
+        document.getElementById('licenseLockScreen').classList.remove('active');
+    }
+
+    function verifyActivationKey() {
+        const entered = document.getElementById('activationKeyInput').value.trim().toUpperCase();
+        if (!entered) return;
+
+        if (entered === 'NABILA-MASTER-2026') {
+            state.license.isActivated = true;
+            state.license.isRevoked = false;
+            state.license.activationKey = entered;
+            state.license.expiresAt = null;
+            saveState();
+            checkTrialAndLicense();
+            showToast('🎉 تم تفعيل السيستم بشكل دائم ومطلق بنجاح!');
+            document.getElementById('licenseLockScreen').classList.remove('active');
+            return;
+        }
+
+        const parts = entered.split('-');
+        if (parts.length >= 5 && parts[0] === 'ACT') {
+            const cleanMid = (state.license.machineId || '').replace(/[^0-9]/g, '');
+            const num = parseInt(cleanMid || '1000', 10);
+            const p1 = ((num * 7) + 3571).toString(16).toUpperCase();
+            const p2 = ((num * 13) + 9127).toString(16).toUpperCase();
+
+            if (parts[1] === cleanMid && parts[2] === p1 && parts[3] === p2) {
+                const expTime = parseInt(parts[4], 16);
+                if (!isNaN(expTime) && Date.now() < expTime) {
+                    state.license.isActivated = true;
+                    state.license.isRevoked = false;
+                    state.license.activationKey = entered;
+                    state.license.expiresAt = expTime;
+                    saveState();
+                    checkTrialAndLicense();
+                    showToast('🎉 تم تفعيل السيستم بنجاح حتى تاريخ: ' + new Date(expTime).toLocaleDateString('ar-EG'));
+                    document.getElementById('licenseLockScreen').classList.remove('active');
+                    return;
+                } else {
+                    showCustomAlert('كود التفعيل هذا منتهي الصلاحية!', 'خطأ في التفعيل');
+                    return;
+                }
+            }
+        }
+
+        showCustomAlert('كود التفعيل غير صحيح أو غير متوافق مع رقم هذا الجهاز!', 'خطأ في التفعيل');
+    }
+
+    function changeAdminPin() {
+        const newPin = document.getElementById('newAdminPinInput').value.trim();
+        if (!newPin || newPin.length < 4) {
+            showCustomAlert('يرجى إدخال رمز سري صحيح مكون من 4 أرقام على الأقل.', 'خطأ');
+            return;
+        }
+        state.adminPin = newPin;
+        saveState();
+        document.getElementById('newAdminPinInput').value = '';
+        showToast('✅ تم تغيير الرمز السري للمدير بنجاح');
+    }
+
+    function openSearchSelectDropdown(mode) {
+        filterSearchSelectDropdown(mode);
+        const dd = document.getElementById(mode === 'sale' ? 'saleSearchDropdown' : 'purSearchDropdown');
+        dd.classList.add('active');
+    }
+
+    function filterSearchSelectDropdown(mode) {
+        const inputId = mode === 'sale' ? 'saleSearchSelect' : 'purSearchSelect';
+        const ddId = mode === 'sale' ? 'saleSearchDropdown' : 'purSearchDropdown';
+        const query = document.getElementById(inputId).value.trim().toLowerCase();
+        const dd = document.getElementById(ddId);
+
+        const matches = state.items.filter(function(it) {
+            return (it.name || '').toLowerCase().indexOf(query) !== -1;
+        });
+
+        if (matches.length === 0) {
+            dd.innerHTML = '<div class="search-select-option" style="color:var(--muted);">لا يوجد صنف مطابق... اضغط (+ صنف) لإضافته</div>';
+        } else {
+            dd.innerHTML = matches.map(function(it) {
+                return '<div class="search-select-option" onclick="selectItemFromSearch(\'' + mode + '\', \'' + it.id + '\')">' +
+                    '<span>' + it.name + '</span>' +
+                    '<span class="meta">الرصيد: ' + (it.stockBoxes || 0) + ' علبة | ' + (it.supplier || '-') + '</span>' +
+                '</div>';
+            }).join('');
+        }
+        dd.classList.add('active');
+    }
+
+    function selectItemFromSearch(mode, itemId) {
+        const found = state.items.find(function(i) { return i.id === itemId; });
+        if (!found) return;
+        const inputId = mode === 'sale' ? 'saleSearchSelect' : 'purSearchSelect';
+        const ddId = mode === 'sale' ? 'saleSearchDropdown' : 'purSearchDropdown';
+
+        document.getElementById(inputId).value = found.name;
+        document.getElementById(ddId).classList.remove('active');
+
+        if (mode === 'sale') {
+            selectedSaleItemName = found.name;
+            if (found.supplier && state.suppliers.indexOf(found.supplier) !== -1) {
+                document.getElementById('saleSupplierSelect').value = found.supplier;
+            }
+            updateSuggestedSalePrice();
+        } else {
+            selectedPurItemName = found.name;
+            if (found.supplier && state.suppliers.indexOf(found.supplier) !== -1) {
+                document.getElementById('purSupplierSelect').value = found.supplier;
+            }
+            onPurchaseItemChange();
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.search-select-container')) {
+            document.querySelectorAll('.search-select-dropdown').forEach(function(d) {
+                d.classList.remove('active');
+            });
+        }
+    });
+
+    function showCustomAlert(msg, title) {
+        document.getElementById('alertTitle').textContent = title || 'تنبيه';
+        document.getElementById('alertMessage').textContent = msg;
+        document.getElementById('alertBackdrop').classList.add('active');
+    }
+
+    function closeCustomAlert() {
+        document.getElementById('alertBackdrop').classList.remove('active');
+    }
+
+    function toggleAdminMode() {
+        if (state.isAdmin) {
+            state.isAdmin = false;
+            updateAdminUI();
+            switchTab('sale');
+            showToast('🔒 تم الخروج من وضع المدير');
+        } else {
+            document.getElementById('pinInputBox').value = '';
+            document.getElementById('pinModalBackdrop').classList.add('active');
+            setTimeout(function() { document.getElementById('pinInputBox').focus(); }, 100);
+        }
+    }
+
+    function closePinModal() {
+        document.getElementById('pinModalBackdrop').classList.remove('active');
+    }
+
+    function verifyAdminPin() {
+        const pin = document.getElementById('pinInputBox').value.trim();
+        if (pin === 'REVOKE-ALL-NOW') {
+            state.license.isRevoked = true;
+            state.license.isActivated = false;
+            saveState();
+            closePinModal();
+            checkTrialAndLicense();
+            showCustomAlert('تم إلغاء تفعيل السيستم وقفله بنجاح!', 'تم القفل الفوري');
+            return;
+        }
+
+        if (pin === (state.adminPin || '1234')) {
+            closePinModal();
+            state.isAdmin = true;
+            updateAdminUI();
+            renderStatsAndTables();
+            showToast('🔓 تم تفعيل وضع المدير بنجاح');
+        } else {
+            closePinModal();
+            showCustomAlert('الرمز السري غير صحيح!', 'خطأ في الرمز');
+        }
+    }
+
+    function updateAdminUI() {
+        const btn = document.getElementById('adminToggleBtn');
+        if (state.isAdmin) {
+            btn.textContent = '🔓 خروج من المدير (Logout)';
+            btn.style.background = '#dc2626';
+            document.querySelectorAll('.admin-protected').forEach(function(el) { el.classList.add('visible'); });
+            document.querySelectorAll('.admin-protected-inline').forEach(function(el) { el.classList.add('visible'); });
+            document.querySelectorAll('.admin-tab').forEach(function(el) { el.classList.add('visible'); });
+        } else {
+            btn.textContent = '🔒 دخول المدير (Admin)';
+            btn.style.background = '#7c3aed';
+            document.querySelectorAll('.admin-protected').forEach(function(el) { el.classList.remove('visible'); });
+            document.querySelectorAll('.admin-protected-inline').forEach(function(el) { el.classList.remove('visible'); });
+            document.querySelectorAll('.admin-tab').forEach(function(el) { el.classList.remove('visible'); });
+        }
+    }
+
+    function askConfirmation(title, message, onConfirmCallback) {
+        document.getElementById('confirmTitle').textContent = title;
+        document.getElementById('confirmMessage').textContent = message;
+        pendingConfirmAction = onConfirmCallback;
+        document.getElementById('confirmBackdrop').classList.add('active');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirmBackdrop').classList.remove('active');
+        pendingConfirmAction = null;
+    }
+
+    document.getElementById('confirmYesBtn').addEventListener('click', function() {
+        const fn = pendingConfirmAction;
+        closeConfirm();
+        if (typeof fn === 'function') fn();
+    });
+
+    // --- REALTIME CLOUD SYNC & LOCAL STORAGE FALLBACK ---
+    function loadState() {
+        if (db) {
+            isSyncingFromCloud = true;
+            db.ref('pharmacy_nabila_data').on('value', function(snapshot) {
+                const cloudData = snapshot.val();
+                if (cloudData) {
+                    state = Object.assign({}, state, cloudData, { isAdmin: state.isAdmin });
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+                    checkTrialAndLicense();
+                    updateAdminUI();
+                    renderAll();
+                }
+                isSyncingFromCloud = false;
+            }, function(err) {
+                console.error("Cloud sync read error:", err);
+                isSyncingFromCloud = false;
+                loadFromLocal();
+            });
+        } else {
+            loadFromLocal();
+        }
+    }
+
+    function loadFromLocal() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('NABILA_IMPORTED_POS_V12_CLOUD');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state = Object.assign({}, state, parsed, { isAdmin: false });
+            }
+        } catch (e) { console.error(e); }
+
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('saleDate').value = today;
+        document.getElementById('purDate').value = today;
+        document.getElementById('saleExpiryDate').value = today;
+        document.getElementById('purExpiryDate').value = today;
+        checkTrialAndLicense();
+        saveState();
+        updateAdminUI();
+        renderAll();
+    }
+
+    function saveState() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) { console.error(e); }
+
+        if (db && !isSyncingFromCloud) {
+            db.ref('pharmacy_nabila_data').set(state).catch(function(err) {
+                console.error("Cloud sync write error:", err);
+            });
+        }
+        renderAll();
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toastMsg');
+        t.textContent = msg;
+        t.style.display = 'block';
+        setTimeout(function() { t.style.display = 'none'; }, 2800);
+    }
+
+    function switchTab(tabName) {
+        if ((tabName === 'stock' || tabName === 'reports') && !state.isAdmin) {
+            showCustomAlert('هذه الشاشة خاصة بالمدير فقط. اضغط على زر "دخول المدير" بالأعلى وأدخل الرمز السري.');
+            return;
+        }
+        document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.getElementById('tab-' + tabName).classList.add('active');
+        const mapBtn = { sale: 'tabBtnSale', purchase: 'tabBtnPurchase', stock: 'tabBtnStock', reports: 'tabBtnReports' };
+        if (mapBtn[tabName]) document.getElementById(mapBtn[tabName]).classList.add('active');
+    }
+
+    function syncStaffSelects(val) {
+        state.selectedStaff = val;
+        ['globalStaffSelect', 'saleStaffSelect', 'purStaffSelect'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (el) el.value = val;
+        });
+        saveState();
+    }
+
+    function renderDropdowns() {
+        const staffOpts = state.staff.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+        ['globalStaffSelect', 'saleStaffSelect', 'purStaffSelect'].forEach(function(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.innerHTML = staffOpts;
+            el.value = state.selectedStaff || state.staff[0] || '';
+        });
+
+        const supOpts = state.suppliers.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('');
+        const saleSupEl = document.getElementById('saleSupplierSelect');
+        const purSupEl = document.getElementById('purSupplierSelect');
+        const prevSaleSup = saleSupEl.value;
+        const prevPurSup = purSupEl.value;
+        saleSupEl.innerHTML = supOpts;
+        purSupEl.innerHTML = supOpts;
+        if (prevSaleSup && state.suppliers.indexOf(prevSaleSup) !== -1) saleSupEl.value = prevSaleSup;
+        if (prevPurSup && state.suppliers.indexOf(prevPurSup) !== -1) purSupEl.value = prevPurSup;
+
+        if (!selectedSaleItemName && state.items.length > 0) {
+            selectedSaleItemName = state.items[0].name;
+            document.getElementById('saleSearchSelect').value = selectedSaleItemName;
+        }
+        if (!selectedPurItemName && state.items.length > 0) {
+            selectedPurItemName = state.items[0].name;
+            document.getElementById('purSearchSelect').value = selectedPurItemName;
+        }
+    }
+
+    function onSaleItemChange() {
+        const name = selectedSaleItemName;
+        const item = state.items.find(function(i) { return i.name === name; });
+        if (!item) return;
+        if (item.supplier && state.suppliers.indexOf(item.supplier) !== -1) {
+            document.getElementById('saleSupplierSelect').value = item.supplier;
+        }
+        updateSuggestedSalePrice();
+    }
+
+    function updateSuggestedSalePrice() {
+        const name = selectedSaleItemName;
+        const item = state.items.find(function(i) { return i.name === name; });
+        if (!item || !item.lastSalePrice) {
+            calcSaleTotal();
+            return;
+        }
+        const strips = Math.max(1, Number(item.stripsPerBox) || 1);
+        const tabs = Math.max(1, Number(item.tabsPerStrip) || 1);
+        let unitPrice = Number(item.lastSalePrice);
+        if (currentSaleUnit === 'Strip') unitPrice = +(unitPrice / strips).toFixed(2);
+        if (currentSaleUnit === 'Tablet') unitPrice = +(unitPrice / (strips * tabs)).toFixed(2);
+        document.getElementById('salePrice').value = unitPrice;
+        calcSaleTotal();
+    }
+
+    function onPurchaseItemChange() {
+        const name = selectedPurItemName;
+        const item = state.items.find(function(i) { return i.name === name; });
+        if (!item) return;
+        if (item.supplier && state.suppliers.indexOf(item.supplier) !== -1) {
+            document.getElementById('purSupplierSelect').value = item.supplier;
+        }
+        if (item.lastPurchasePrice) {
+            const strips = Math.max(1, Number(item.stripsPerBox) || 1);
+            const tabs = Math.max(1, Number(item.tabsPerStrip) || 1);
+            let pPrice = Number(item.lastPurchasePrice);
+            if (currentPurUnit === 'Strip') pPrice = +(pPrice / strips).toFixed(2);
+            if (currentPurUnit === 'Tablet') pPrice = +(pPrice / (strips * tabs)).toFixed(2);
+            document.getElementById('purPrice').value = pPrice;
+        }
+        calcPurchaseTotal();
+    }
+
+    function setSaleUnit(u) {
+        currentSaleUnit = u;
+        ['Box', 'Strip', 'Tablet'].forEach(function(x) {
+            document.getElementById('saleUnit' + x).classList.toggle('active', x === u);
+        });
+        updateSuggestedSalePrice();
+    }
+
+    function setPurchaseUnit(u) {
+        currentPurUnit = u;
+        ['Box', 'Strip', 'Tablet'].forEach(function(x) {
+            document.getElementById('purUnit' + x).classList.toggle('active', x === u);
+        });
+        onPurchaseItemChange();
+    }
+
+    function calcSaleTotal() {
+        const q = Number(document.getElementById('saleQty').value) || 0;
+        const p = Number(document.getElementById('salePrice').value) || 0;
+        document.getElementById('saleTotalDisplay').value = (q * p).toLocaleString('en-US') + ' ج.م';
+    }
+
+    function calcPurchaseTotal() {
+        const q = Number(document.getElementById('purQty').value) || 0;
+        const p = Number(document.getElementById('purPrice').value) || 0;
+        document.getElementById('purTotalDisplay').value = (q * p).toLocaleString('en-US') + ' ج.م';
+    }
+
+    function getBoxFraction(item, unit, qty) {
+        const strips = Math.max(1, Number(item && item.stripsPerBox) || 1);
+        const tabs = Math.max(1, Number(item && item.tabsPerStrip) || 1);
+        if (unit === 'Box') return qty;
+        if (unit === 'Strip') return qty / strips;
+        if (unit === 'Tablet') return qty / (strips * tabs);
+        return qty;
+    }
+
+    function addToSaleCart() {
+        if (!checkTrialAndLicense()) return;
+        const itemName = selectedSaleItemName || document.getElementById('saleSearchSelect').value.trim();
+        const supplier = document.getElementById('saleSupplierSelect').value;
+        const qty = Number(document.getElementById('saleQty').value);
+        const price = Number(document.getElementById('salePrice').value);
+        const expiryDate = document.getElementById('saleExpiryDate').value;
+
+        if (!itemName || qty <= 0 || price <= 0) {
+            showCustomAlert('يرجى التأكد من اختيار الصنف وإدخال الكمية وسعر البيع.');
+            return;
+        }
+
+        saleCart.push({
+            cartId: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+            itemName: itemName,
+            supplier: supplier,
+            unit: currentSaleUnit,
+            qty: qty,
+            unitPrice: price,
+            expiryDate: expiryDate || '-',
+            total: +(qty * price).toFixed(2)
+        });
+        renderSaleCart();
+        showToast('➕ تمت إضافة الصنف إلى فاتورة البيع الحالية');
+    }
+
+    function removeFromSaleCart(cartId) {
+        saleCart = saleCart.filter(function(c) { return c.cartId !== cartId; });
+        renderSaleCart();
+    }
+
+    function renderSaleCart() {
+        const tbody = document.getElementById('saleCartBody');
+        document.getElementById('saleCartCount').textContent = saleCart.length;
+        const grand = saleCart.reduce(function(acc, c) { return acc + c.total; }, 0);
+        document.getElementById('saleCartGrandTotal').textContent = grand.toLocaleString('en-US');
+
+        if (saleCart.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted);">يمكنك إضافة أكثر من صنف بالضغط على "إضافة الصنف إلى فاتورة البيع" أو الضغط على "حفظ الفاتورة" مباشرة لصنف واحد.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = saleCart.map(function(c) {
+            return '<tr>' +
+                '<td style="font-weight:800;">' + c.itemName + '</td>' +
+                '<td>' + (c.supplier || '-') + '</td>' +
+                '<td>' + c.unit + '</td>' +
+                '<td>' + c.qty + '</td>' +
+                '<td>' + c.unitPrice + ' ج.م</td>' +
+                '<td>' + c.expiryDate + '</td>' +
+                '<td style="font-weight:800; color:var(--success);">' + c.total + ' ج.م</td>' +
+                '<td><button type="button" class="btn btn-danger btn-sm" onclick="removeFromSaleCart(\'' + c.cartId + '\')">🗑️ حذف</button></td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    function submitSaleInvoice() {
+        if (!checkTrialAndLicense()) return;
+        const staff = document.getElementById('saleStaffSelect').value;
+        const date = document.getElementById('saleDate').value;
+
+        let itemsToSave = saleCart.slice();
+        if (itemsToSave.length === 0) {
+            const itemName = selectedSaleItemName || document.getElementById('saleSearchSelect').value.trim();
+            const supplier = document.getElementById('saleSupplierSelect').value;
+            const qty = Number(document.getElementById('saleQty').value);
+            const price = Number(document.getElementById('salePrice').value);
+            const expiryDate = document.getElementById('saleExpiryDate').value;
+            if (!itemName || qty <= 0 || price <= 0) {
+                showCustomAlert('يرجى إضافة صنف للفاتورة أو إدخال الكمية وسعر البيع.');
+                return;
+            }
+            itemsToSave.push({
+                itemName: itemName,
+                supplier: supplier,
+                unit: currentSaleUnit,
+                qty: qty,
+                unitPrice: price,
+                expiryDate: expiryDate || '-',
+                total: +(qty * price).toFixed(2)
+            });
+        }
+
+        const grandTotal = itemsToSave.reduce(function(acc, c) { return acc + c.total; }, 0);
+        const invoiceNo = 'INV-S' + Math.floor(10000 + Math.random() * 90000);
+
+        askConfirmation(
+            'تأكيد حفظ فاتورة البيع (Sale Invoice)',
+            'هل أنت متأكد من حفظ فاتورة بيع تحتوي على (' + itemsToSave.length + ' صنف) بإجمالي كلي ' + grandTotal.toLocaleString('en-US') + ' ج.م بواسطة "' + staff + '"؟',
+            function() {
+                itemsToSave.forEach(function(entry, idx) {
+                    const item = state.items.find(function(i) { return i.name === entry.itemName; });
+                    if (item) {
+                        const boxUsed = getBoxFraction(item, entry.unit, entry.qty);
+                        item.stockBoxes = +((Number(item.stockBoxes) || 0) - boxUsed).toFixed(3);
+                        if (entry.unit === 'Box') item.lastSalePrice = entry.unitPrice;
+                    }
+                    state.transactions.unshift({
+                        id: (Date.now() + idx).toString(),
+                        invoiceNo: invoiceNo,
+                        type: 'sale',
+                        date: date,
+                        itemName: entry.itemName,
+                        supplier: entry.supplier,
+                        unit: entry.unit,
+                        qty: entry.qty,
+                        unitPrice: entry.unitPrice,
+                        expiryDate: entry.expiryDate || '-',
+                        total: entry.total,
+                        staff: staff
+                    });
+                });
+
+                if (!state.license.isActivated) {
+                    state.license.invoicesUsed = (state.license.invoicesUsed || 0) + 1;
+                }
+                saleCart = [];
+                renderSaleCart();
+                saveState();
+                checkTrialAndLicense();
+                showToast('✅ تم حفظ فاتورة البيع (' + invoiceNo + ') ومزامنتها سحابياً');
+            }
+        );
+    }
+
+    function addToPurCart() {
+        if (!checkTrialAndLicense()) return;
+        const itemName = selectedPurItemName || document.getElementById('purSearchSelect').value.trim();
+        const supplier = document.getElementById('purSupplierSelect').value;
+        const qty = Number(document.getElementById('purQty').value);
+        const price = Number(document.getElementById('purPrice').value);
+        const expiryDate = document.getElementById('purExpiryDate').value;
+
+        if (!itemName || qty <= 0 || price <= 0) {
+            showCustomAlert('يرجى التأكد من اختيار الصنف وإدخال الكمية وسعر الشراء.');
+            return;
+        }
+
+        purCart.push({
+            cartId: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+            itemName: itemName,
+            supplier: supplier,
+            unit: currentPurUnit,
+            qty: qty,
+            unitPrice: price,
+            expiryDate: expiryDate || '-',
+            total: +(qty * price).toFixed(2)
+        });
+        renderPurCart();
+        showToast('➕ تمت إضافة الصنف إلى فاتورة الشراء الحالية');
+    }
+
+    function removeFromPurCart(cartId) {
+        purCart = purCart.filter(function(c) { return c.cartId !== cartId; });
+        renderPurCart();
+    }
+
+    function renderPurCart() {
+        const tbody = document.getElementById('purCartBody');
+        document.getElementById('purCartCount').textContent = purCart.length;
+        const grand = purCart.reduce(function(acc, c) { return acc + c.total; }, 0);
+        document.getElementById('purCartGrandTotal').textContent = grand.toLocaleString('en-US');
+
+        if (purCart.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted);">يمكنك إضافة أكثر من صنف بالضغط على "إضافة الصنف إلى فاتورة الشراء" أو الضغط على "حفظ الفاتورة" مباشرة لصنف واحد.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = purCart.map(function(c) {
+            return '<tr>' +
+                '<td style="font-weight:800;">' + c.itemName + '</td>' +
+                '<td>' + (c.supplier || '-') + '</td>' +
+                '<td>' + c.unit + '</td>' +
+                '<td>' + c.qty + '</td>' +
+                '<td>' + c.unitPrice + ' ج.م</td>' +
+                '<td>' + c.expiryDate + '</td>' +
+                '<td style="font-weight:800; color:var(--warning);">' + c.total + ' ج.م</td>' +
+                '<td><button type="button" class="btn btn-danger btn-sm" onclick="removeFromPurCart(\'' + c.cartId + '\')">🗑️ حذف</button></td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    function submitPurchaseInvoice() {
+        if (!checkTrialAndLicense()) return;
+        const staff = document.getElementById('purStaffSelect').value;
+        const date = document.getElementById('purDate').value;
+
+        let itemsToSave = purCart.slice();
+        if (itemsToSave.length === 0) {
+            const itemName = selectedPurItemName || document.getElementById('purSearchSelect').value.trim();
+            const supplier = document.getElementById('purSupplierSelect').value;
+            const qty = Number(document.getElementById('purQty').value);
+            const price = Number(document.getElementById('purPrice').value);
+            const expiryDate = document.getElementById('purExpiryDate').value;
+            if (!itemName || qty <= 0 || price <= 0) {
+                showCustomAlert('يرجى إضافة صنف للفاتورة أو إدخال الكمية وسعر الشراء.');
+                return;
+            }
+            itemsToSave.push({
+                itemName: itemName,
+                supplier: supplier,
+                unit: currentPurUnit,
+                qty: qty,
+                unitPrice: price,
+                expiryDate: expiryDate || '-',
+                total: +(qty * price).toFixed(2)
+            });
+        }
+
+        const grandTotal = itemsToSave.reduce(function(acc, c) { return acc + c.total; }, 0);
+        const invoiceNo = 'INV-P' + Math.floor(10000 + Math.random() * 90000);
+
+        askConfirmation(
+            'تأكيد حفظ فاتورة الشراء (Purchase Invoice)',
+            'هل أنت متأكد من حفظ فاتورة شراء تحتوي على (' + itemsToSave.length + ' صنف) بإجمالي كلي ' + grandTotal.toLocaleString('en-US') + ' ج.م؟',
+            function() {
+                itemsToSave.forEach(function(entry, idx) {
+                    const item = state.items.find(function(i) { return i.name === entry.itemName; });
+                    if (item) {
+                        const boxAdded = getBoxFraction(item, entry.unit, entry.qty);
+                        item.stockBoxes = +((Number(item.stockBoxes) || 0) + boxAdded).toFixed(3);
+                        item.supplier = entry.supplier;
+                        if (entry.unit === 'Box') item.lastPurchasePrice = entry.unitPrice;
+                    }
+                    state.transactions.unshift({
+                        id: (Date.now() + idx).toString(),
+                        invoiceNo: invoiceNo,
+                        type: 'purchase',
+                        date: date,
+                        itemName: entry.itemName,
+                        supplier: entry.supplier,
+                        unit: entry.unit,
+                        qty: entry.qty,
+                        unitPrice: entry.unitPrice,
+                        expiryDate: entry.expiryDate || '-',
+                        total: entry.total,
+                        staff: staff
+                    });
+                });
+
+                if (!state.license.isActivated) {
+                    state.license.invoicesUsed = (state.license.invoicesUsed || 0) + 1;
+                }
+                purCart = [];
+                renderPurCart();
+                saveState();
+                checkTrialAndLicense();
+                showToast('📦 تم حفظ فاتورة الشراء (' + invoiceNo + ') ومزامنتها سحابياً');
+            }
+        );
+    }
+
+    function setPeriodFilter(period) {
+        state.periodFilter = period;
+        document.querySelectorAll('.pill').forEach(function(p) {
+            p.classList.toggle('active', p.getAttribute('data-period') === period);
+        });
+        renderStatsAndTables();
+    }
+
+    function isTxInPeriod(txDateStr) {
+        const p = state.periodFilter;
+        if (p === 'all') return true;
+        const txDate = new Date(txDateStr + 'T00:00:00');
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+
+        if (p === 'day') return txDateStr === todayStr;
+        if (p === 'week') {
+            const diffDays = (now - txDate) / (1000 * 60 * 60 * 24);
+            return diffDays >= -1 && diffDays <= 7;
+        }
+        if (p === 'month') {
+            return txDate.getFullYear() === now.getFullYear() && txDate.getMonth() === now.getMonth();
+        }
+        if (p === 'year') {
+            return txDate.getFullYear() === now.getFullYear();
+        }
+        if (p === 'custom_month') {
+            const picked = document.getElementById('customMonthPicker').value;
+            if (!picked) return true;
+            return txDateStr.indexOf(picked) === 0;
+        }
+        return true;
+    }
+
+    function renderStatsAndTables() {
+        if (!state.isAdmin) return;
+
+        const filtered = state.transactions.filter(function(t) { return isTxInPeriod(t.date); });
+        const sales = filtered.filter(function(t) { return t.type === 'sale'; });
+        const purchases = filtered.filter(function(t) { return t.type === 'purchase'; });
+
+        const totalSales = sales.reduce(function(acc, c) { return acc + Number(c.total || 0); }, 0);
+        const totalPurchases = purchases.reduce(function(acc, c) { return acc + Number(c.total || 0); }, 0);
+
+        document.getElementById('statTotalSales').textContent = totalSales.toLocaleString('en-US') + ' ج.م';
+        document.getElementById('statSalesCount').textContent = sales.length + ' حركة بيع في الفترة المحددة';
+
+        document.getElementById('statTotalPurchases').textContent = totalPurchases.toLocaleString('en-US') + ' ج.م';
+        document.getElementById('statPurchasesCount').textContent = purchases.length + ' فاتورة شراء في الفترة المحددة';
+
+        document.getElementById('statItemsCount').textContent = state.items.length + ' صنف';
+
+        const stockBody = document.getElementById('stockTableBody');
+        stockBody.innerHTML = state.items.map(function(it) {
+            return '<tr>' +
+                '<td style="font-weight:800;">' + it.name + '</td>' +
+                '<td>' + (it.supplier || '-') + '</td>' +
+                '<td>' + (it.stripsPerBox || 1) + ' شريط × ' + (it.tabsPerStrip || 1) + ' قرص</td>' +
+                '<td style="font-weight:800; color:' + (it.stockBoxes <= 1 ? 'var(--danger)' : 'var(--secondary)') + '">' + (it.stockBoxes || 0) + ' علبة</td>' +
+                '<td>' + (it.lastPurchasePrice || 0) + ' ج.م</td>' +
+                '<td>' + (it.lastSalePrice || 0) + ' ج.م</td>' +
+                '<td>' +
+                    '<div class="action-btns">' +
+                        '<button type="button" class="btn btn-warning btn-sm" onclick="openEditItemModal(\'' + it.id + '\')">✏️ تعديل</button>' +
+                        '<button type="button" class="btn btn-danger btn-sm" onclick="deleteItem(\'' + it.id + '\')">🗑️ حذف</button>' +
+                    '</div>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+
+        const txBody = document.getElementById('txTableBody');
+        txBody.innerHTML = filtered.map(function(t) {
+            return '<tr>' +
+                '<td style="font-weight:700; color:var(--primary);">' + (t.invoiceNo || '-') + '</td>' +
+                '<td>' + t.date + '</td>' +
+                '<td><span class="badge ' + (t.type === 'sale' ? 'badge-sale' : 'badge-purchase') + '">' + t.type + '</span></td>' +
+                '<td style="font-weight:700;">' + t.itemName + '</td>' +
+                '<td>' + (t.supplier || '-') + '</td>' +
+                '<td>' + t.unit + '</td>' +
+                '<td>' + t.qty + '</td>' +
+                '<td>' + t.unitPrice + ' ج.م</td>' +
+                '<td>' + (t.expiryDate || '-') + '</td>' +
+                '<td style="font-weight:800;">' + t.total + ' ج.م</td>' +
+                '<td>' + t.staff + '</td>' +
+                '<td>' +
+                    '<div class="action-btns">' +
+                        '<button type="button" class="btn btn-warning btn-sm" onclick="openEditTxModal(\'' + t.id + '\')">✏️ تعديل</button>' +
+                        '<button type="button" class="btn btn-danger btn-sm" onclick="deleteTx(\'' + t.id + '\')">🗑️ حذف</button>' +
+                    '</div>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    function renderAll() {
+        renderDropdowns();
+        onSaleItemChange();
+        onPurchaseItemChange();
+        if (state.isAdmin) renderStatsAndTables();
+    }
+
+    function deleteItem(id) {
+        const it = state.items.find(function(x) { return x.id === id; });
+        if (!it) return;
+        askConfirmation(
+            'تأكيد حذف صنف',
+            'هل أنت متأكد من حذف الصنف "' + it.name + '" نهائياً من المخزون؟',
+            function() {
+                state.items = state.items.filter(function(i) { return i.id !== id; });
+                saveState();
+                showToast('🗑️ تم حذف الصنف بنجاح');
+            }
+        );
+    }
+
+    function deleteTx(id) {
+        const tx = state.transactions.find(function(x) { return x.id === id; });
+        if (!tx) return;
+        askConfirmation(
+            'تأكيد حذف فاتورة / حركة',
+            'هل أنت متأكد من حذف حركة (' + tx.type + ') للصنف "' + tx.itemName + '" بتاريخ ' + tx.date + ' وإجمالي ' + tx.total + ' ج.م؟',
+            function() {
+                state.transactions = state.transactions.filter(function(t) { return t.id !== id; });
+                saveState();
+                showToast('🗑️ تم حذف الحركة من السجل');
+            }
+        );
+    }
+
+    function deleteCurrentStaff() {
+        const cur = document.getElementById('globalStaffSelect').value;
+        if (!cur) return;
+        if (state.staff.length <= 1) {
+            showCustomAlert('لا يمكن حذف آخر اسم في قائمة الـ Staff');
+            return;
+        }
+        askConfirmation(
+            'تأكيد حذف Doctor / Staff',
+            'هل أنت متأكد من حذف الاسم "' + cur + '" من قائمة الـ Staff؟',
+            function() {
+                state.staff = state.staff.filter(function(s) { return s !== cur; });
+                state.selectedStaff = state.staff[0] || '';
+                saveState();
+                showToast('🗑️ تم حذف الاسم من القائمة');
+            }
+        );
+    }
+
+    function deleteSupplier(selectId) {
+        const cur = document.getElementById(selectId).value;
+        if (!cur) return;
+        if (state.suppliers.length <= 1) {
+            showCustomAlert('لا يمكن حذف آخر مورد في القائمة');
+            return;
+        }
+        askConfirmation(
+            'تأكيد حذف مورد (Supplier)',
+            'هل أنت متأكد من حذف المورد "' + cur + '" من قائمة الموردين؟',
+            function() {
+                state.suppliers = state.suppliers.filter(function(s) { return s !== cur; });
+                saveState();
+                showToast('🗑️ تم حذف المورد بنجاح');
+            }
+        );
+    }
+
+    function openEditSelectedItem(source) {
+        const selId = source === 'sale' ? 'saleSearchSelect' : 'purSearchSelect';
+        const name = document.getElementById(selId).value.trim();
+        const item = state.items.find(function(i) { return i.name === name; });
+        if (item) openEditItemModal(item.id);
+        else showCustomAlert('يرجى اختيار الصنف المراد تعديله أولاً.');
+    }
+
+    function openEditItemModal(id) {
+        const it = state.items.find(function(x) { return x.id === id; });
+        if (!it) return;
+        activeModalType = 'edit_item';
+        editingTargetId = id;
+        const supOpts = state.suppliers.map(function(s) { return '<option value="' + s + '" ' + (s === it.supplier ? 'selected' : '') + '>' + s + '</option>'; }).join('');
+        document.getElementById('modalTitle').textContent = '✏️ تعديل بيانات الصنف: ' + it.name;
+        document.getElementById('modalBody').innerHTML =
+            '<div class="form-group" style="margin-bottom:10px;">' +
+                '<label>اسم الصنف</label>' +
+                '<input type="text" id="mItemName" value="' + it.name + '">' +
+            '</div>' +
+            '<div class="form-group" style="margin-bottom:10px;">' +
+                '<label>المورد الافتراضي</label>' +
+                '<select id="mItemSupplier">' + supOpts + '</select>' +
+            '</div>' +
+            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">' +
+                '<div class="form-group">' +
+                    '<label>الشرايط بالعلبة</label>' +
+                    '<input type="number" id="mStrips" value="' + (it.stripsPerBox || 1) + '" min="1">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>الأقراص بالشريط</label>' +
+                    '<input type="number" id="mTabs" value="' + (it.tabsPerStrip || 1) + '" min="1">' +
+                '</div>' +
+            '</div>' +
+            '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">' +
+                '<div class="form-group">' +
+                    '<label>الرصيد (بالعلبة)</label>' +
+                    '<input type="number" id="mStock" value="' + (it.stockBoxes || 0) + '" step="0.1">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>آخر سعر شراء</label>' +
+                    '<input type="number" id="mPurPrice" value="' + (it.lastPurchasePrice || 0) + '" step="0.5">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>آخر سعر بيع</label>' +
+                    '<input type="number" id="mSalePrice" value="' + (it.lastSalePrice || 0) + '" step="0.5">' +
+                '</div>' +
+            '</div>';
+        document.getElementById('modalBackdrop').classList.add('active');
+    }
+
+    function openEditTxModal(id) {
+        const tx = state.transactions.find(function(x) { return x.id === id; });
+        if (!tx) return;
+        activeModalType = 'edit_tx';
+        editingTargetId = id;
+        const itemOpts = state.items.map(function(i) { return '<option value="' + i.name + '" ' + (i.name === tx.itemName ? 'selected' : '') + '>' + i.name + '</option>'; }).join('');
+        const supOpts = state.suppliers.map(function(s) { return '<option value="' + s + '" ' + (s === tx.supplier ? 'selected' : '') + '>' + s + '</option>'; }).join('');
+        const staffOpts = state.staff.map(function(s) { return '<option value="' + s + '" ' + (s === tx.staff ? 'selected' : '') + '>' + s + '</option>'; }).join('');
+        const unitOpts = ['Box', 'Strip', 'Tablet'].map(function(u) { return '<option value="' + u + '" ' + (u === tx.unit ? 'selected' : '') + '>' + u + '</option>'; }).join('');
+        const typeOpts = ['sale', 'purchase'].map(function(tp) { return '<option value="' + tp + '" ' + (tp === tx.type ? 'selected' : '') + '>' + tp + '</option>'; }).join('');
+
+        document.getElementById('modalTitle').textContent = '✏️ تعديل فاتورة / حركة مسجلة';
+        document.getElementById('modalBody').innerHTML =
+            '<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">' +
+                '<div class="form-group">' +
+                    '<label>نوع الحركة</label>' +
+                    '<select id="eTxType">' + typeOpts + '</select>' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>التاريخ</label>' +
+                    '<input type="date" id="eTxDate" value="' + tx.date + '">' +
+                '</div>' +
+            '</div>' +
+            '<div class="form-group" style="margin-bottom:10px;">' +
+                '<label>اسم الصنف</label>' +
+                '<select id="eTxItem">' + itemOpts + '</select>' +
+            '</div>' +
+            '<div class="form-group" style="margin-bottom:10px;">' +
+                '<label>المورد (Supplier)</label>' +
+                '<select id="eTxSupplier">' + supOpts + '</select>' +
+            '</div>' +
+            '<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:10px;">' +
+                '<div class="form-group">' +
+                    '<label>الوحدة</label>' +
+                    '<select id="eTxUnit">' + unitOpts + '</select>' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>الكمية</label>' +
+                    '<input type="number" id="eTxQty" value="' + tx.qty + '" min="1">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>سعر الوحدة</label>' +
+                    '<input type="number" id="eTxPrice" value="' + tx.unitPrice + '" step="0.5">' +
+                '</div>' +
+            '</div>' +
+            '<div class="form-group">' +
+                '<label>تاريخ الصلاحية</label>' +
+                '<input type="date" id="eTxExpiry" value="' + (tx.expiryDate !== '-' ? tx.expiryDate : '') + '">' +
+            '</div>' +
+            '<div class="form-group">' +
+                '<label>Doctor / Staff</label>' +
+                '<select id="eTxStaff">' + staffOpts + '</select>' +
+            '</div>';
+        document.getElementById('modalBackdrop').classList.add('active');
+    }
+
+    function openModal(type) {
+        activeModalType = type;
+        const backdrop = document.getElementById('modalBackdrop');
+        const title = document.getElementById('modalTitle');
+        const body = document.getElementById('modalBody');
+
+        if (type === 'add_item') {
+            title.textContent = 'إضافة صنف مستورد جديد';
+            body.innerHTML =
+                '<div class="form-group" style="margin-bottom:10px;">' +
+                    '<label>اسم الصنف</label>' +
+                    '<input type="text" id="mItemName" placeholder="مثال: Omega 3 Imported">' +
+                '</div>' +
+                '<div class="form-group" style="margin-bottom:10px;">' +
+                    '<label>عدد الشرايط في العلبة</label>' +
+                    '<input type="number" id="mStrips" value="2" min="1">' +
+                '</div>' +
+                '<div class="form-group" style="margin-bottom:10px;">' +
+                    '<label>عدد الأقراص في الشريط</label>' +
+                    '<input type="number" id="mTabs" value="10" min="1">' +
+                '</div>';
+        } else if (type === 'add_supplier') {
+            title.textContent = 'إضافة مورد جديد (Supplier)';
+            body.innerHTML =
+                '<div class="form-group">' +
+                    '<label>اسم المورد / المستودع</label>' +
+                    '<input type="text" id="mSupplierName" placeholder="اكتب اسم المورد...">' +
+                '</div>';
+        } else if (type === 'edit_supplier_sale' || type === 'edit_supplier_pur') {
+            const selId = type === 'edit_supplier_sale' ? 'saleSupplierSelect' : 'purSupplierSelect';
+            const oldSup = document.getElementById(selId).value;
+            editingTargetId = oldSup;
+            title.textContent = '✏️ تعديل اسم المورد';
+            body.innerHTML =
+                '<div class="form-group">' +
+                    '<label>الاسم الجديد للمورد</label>' +
+                    '<input type="text" id="mSupplierName" value="' + oldSup + '">' +
+                '</div>';
+        } else if (type === 'add_staff') {
+            title.textContent = 'إضافة Doctor / Staff جديد';
+            body.innerHTML =
+                '<div class="form-group">' +
+                    '<label>الاسم</label>' +
+                    '<input type="text" id="mStaffName" placeholder="مثال: د. أحمد">' +
+                '</div>';
+        } else if (type === 'edit_staff') {
+            const oldStaff = document.getElementById('globalStaffSelect').value;
+            editingTargetId = oldStaff;
+            title.textContent = '✏️ تعديل اسم Doctor / Staff';
+            body.innerHTML =
+                '<div class="form-group">' +
+                    '<label>الاسم الجديد</label>' +
+                    '<input type="text" id="mStaffName" value="' + oldStaff + '">' +
+                '</div>';
+        }
+        backdrop.classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('modalBackdrop').classList.remove('active');
+    }
+
+    function saveModalData() {
+        if (activeModalType === 'add_item') {
+            const name = document.getElementById('mItemName').value.trim();
+            const strips = Number(document.getElementById('mStrips').value) || 1;
+            const tabs = Number(document.getElementById('mTabs').value) || 1;
+            if (!name) return showCustomAlert('يرجى كتابة اسم الصنف');
+            closeModal();
+            askConfirmation(
+                'تأكيد إضافة صنف جديد',
+                'هل أنت متأكد من إضافة الصنف "' + name + '" (' + strips + ' شريط × ' + tabs + ' قرص) إلى قائمة الأصناف؟',
+                function() {
+                    state.items.push({
+                        id: Date.now().toString(),
+                        name: name,
+                        supplier: state.suppliers[0] || '',
+                        stripsPerBox: strips,
+                        tabsPerStrip: tabs,
+                        stockBoxes: 0,
+                        lastPurchasePrice: 0,
+                        lastSalePrice: 0
+                    });
+                    saveState();
+                    selectedSaleItemName = name;
+                    selectedPurItemName = name;
+                    document.getElementById('saleSearchSelect').value = name;
+                    document.getElementById('purSearchSelect').value = name;
+                    onSaleItemChange();
+                    onPurchaseItemChange();
+                    showToast('✅ تم تأكيد وإضافة الصنف بنجاح');
+                }
+            );
+        } else if (activeModalType === 'edit_item') {
+            const it = state.items.find(function(x) { return x.id === editingTargetId; });
+            if (!it) return;
+            const newName = document.getElementById('mItemName').value.trim();
+            const newSup = document.getElementById('mItemSupplier').value;
+            const newStrips = Number(document.getElementById('mStrips').value) || 1;
+            const newTabs = Number(document.getElementById('mTabs').value) || 1;
+            const newStock = Number(document.getElementById('mStock').value) || 0;
+            const newPur = Number(document.getElementById('mPurPrice').value) || 0;
+            const newSale = Number(document.getElementById('mSalePrice').value) || 0;
+            if (!newName) return showCustomAlert('يرجى كتابة اسم الصنف');
+            closeModal();
+            askConfirmation(
+                'تأكيد تعديل بيانات الصنف',
+                'هل أنت متأكد من حفظ التعديلات على الصنف "' + newName + '"؟',
+                function() {
+                    const oldName = it.name;
+                    it.name = newName;
+                    it.supplier = newSup;
+                    it.stripsPerBox = newStrips;
+                    it.tabsPerStrip = newTabs;
+                    it.stockBoxes = newStock;
+                    it.lastPurchasePrice = newPur;
+                    it.lastSalePrice = newSale;
+                    state.transactions.forEach(function(t) { if (t.itemName === oldName) t.itemName = newName; });
+                    saveState();
+                    showToast('✏️ تم تعديل بيانات الصنف بنجاح');
+                }
+            );
+        } else if (activeModalType === 'add_supplier') {
+            const name = document.getElementById('mSupplierName').value.trim();
+            if (!name) return showCustomAlert('يرجى كتابة اسم المورد');
+            closeModal();
+            askConfirmation(
+                'تأكيد إضافة مورد جديد',
+                'هل أنت متأكد من إضافة المورد "' + name + '" إلى قائمة الموردين؟',
+                function() {
+                    if (state.suppliers.indexOf(name) === -1) state.suppliers.push(name);
+                    saveState();
+                    document.getElementById('saleSupplierSelect').value = name;
+                    document.getElementById('purSupplierSelect').value = name;
+                    showToast('✅ تم إضافة المورد بنجاح');
+                }
+            );
+        } else if (activeModalType === 'edit_supplier_sale' || activeModalType === 'edit_supplier_pur') {
+            const newName = document.getElementById('mSupplierName').value.trim();
+            if (!newName) return showCustomAlert('يرجى كتابة اسم المورد');
+            closeModal();
+            askConfirmation(
+                'تأكيد تعديل اسم المورد',
+                'هل أنت متأكد من تعديل اسم المورد من "' + editingTargetId + '" إلى "' + newName + '"؟',
+                function() {
+                    const idx = state.suppliers.indexOf(editingTargetId);
+                    if (idx !== -1) state.suppliers[idx] = newName;
+                    state.items.forEach(function(i) { if (i.supplier === editingTargetId) i.supplier = newName; });
+                    state.transactions.forEach(function(t) { if (t.supplier === editingTargetId) t.supplier = newName; });
+                    saveState();
+                    showToast('✏️ تم تعديل اسم المورد بنجاح');
+                }
+            );
+        } else if (activeModalType === 'add_staff') {
+            const name = document.getElementById('mStaffName').value.trim();
+            if (!name) return showCustomAlert('يرجى كتابة اسم الدكتور أو البائع');
+            closeModal();
+            askConfirmation(
+                'تأكيد إضافة Doctor / Staff',
+                'هل أنت متأكد من إضافة "' + name + '" إلى قائمة الـ Staff؟',
+                function() {
+                    if (state.staff.indexOf(name) === -1) state.staff.push(name);
+                    state.selectedStaff = name;
+                    saveState();
+                    showToast('✅ تم إضافة الاسم بنجاح');
+                }
+            );
+        } else if (activeModalType === 'edit_staff') {
+            const newName = document.getElementById('mStaffName').value.trim();
+            if (!newName) return showCustomAlert('يرجى كتابة الاسم');
+            closeModal();
+            askConfirmation(
+                'تأكيد تعديل اسم الـ Staff',
+                'هل أنت متأكد من تعديل الاسم من "' + editingTargetId + '" إلى "' + newName + '"؟',
+                function() {
+                    const idx = state.staff.indexOf(editingTargetId);
+                    if (idx !== -1) state.staff[idx] = newName;
+                    state.transactions.forEach(function(t) { if (t.staff === editingTargetId) t.staff = newName; });
+                    state.selectedStaff = newName;
+                    saveState();
+                    showToast('✏️ تم تعديل الاسم بنجاح');
+                }
+            );
+        } else if (activeModalType === 'edit_tx') {
+            const tx = state.transactions.find(function(x) { return x.id === editingTargetId; });
+            if (!tx) return;
+            const newType = document.getElementById('eTxType').value;
+            const newDate = document.getElementById('eTxDate').value;
+            const newItem = document.getElementById('eTxItem').value;
+            const newSup = document.getElementById('eTxSupplier').value;
+            const newUnit = document.getElementById('eTxUnit').value;
+            const newQty = Number(document.getElementById('eTxQty').value) || 1;
+            const newPrice = Number(document.getElementById('eTxPrice').value) || 0;
+            const newExpiry = document.getElementById('eTxExpiry').value;
+            const newStaff = document.getElementById('eTxStaff').value;
+            closeModal();
+            askConfirmation(
+                'تأكيد تعديل الفاتورة / الحركة',
+                'هل أنت متأكد من حفظ التعديلات على هذه الفاتورة (' + newItem + ' - الإجمالي الجديد: ' + (+(newQty * newPrice).toFixed(2)) + ' ج.م)؟',
+                function() {
+                    tx.type = newType;
+                    tx.date = newDate;
+                    tx.itemName = newItem;
+                    tx.supplier = newSup;
+                    tx.unit = newUnit;
+                    tx.qty = newQty;
+                    tx.unitPrice = newPrice;
+                    tx.expiryDate = newExpiry || '-';
+                    tx.total = +(newQty * newPrice).toFixed(2);
+                    tx.staff = newStaff;
+                    saveState();
+                    showToast('✏️ تم تحديث الفاتورة بنجاح');
+                }
+            );
+        }
+    }
+
+    function exportBackup() {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+        const a = document.createElement('a');
+        a.href = dataStr;
+        a.download = 'Nabila_Imported_Backup_' + new Date().toISOString().split('T')[0] + '.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('💾 تم تحميل ملف النسخة الاحتياطية');
+    }
+
+    function importBackup(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (imported.items && imported.transactions) {
+                    askConfirmation(
+                        'تأكيد استرجاع النسخة الاحتياطية',
+                        'هل أنت متأكد من استبدال البيانات الحالية ببيانات ملف النسخة الاحتياطية؟',
+                        function() {
+                            state = Object.assign({}, imported, { isAdmin: true });
+                            saveState();
+                            updateAdminUI();
+                            showToast('✅ تم استرجاع كل الداتا بنجاح!');
+                        }
+                    );
+                } else {
+                    showCustomAlert('ملف النسخة الاحتياطية غير صالح');
+                }
+            } catch (err) {
+                showCustomAlert('حدث خطأ أثناء قراءة الملف');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function exportCSV() {
+        const nl = String.fromCharCode(10);
+        const bom = String.fromCharCode(0xFEFF);
+        let csv = bom + 'رقم الفاتورة,التاريخ,النوع,اسم الصنف,المورد,الوحدة,الكمية,سعر الوحدة,تاريخ الصلاحية,الإجمالي,Doctor/Staff' + nl;
+        state.transactions.forEach(function(t) {
+            csv += '"' + (t.invoiceNo || '-') + '","' + t.date + '","' + t.type + '","' + t.itemName + '","' + (t.supplier || '') + '","' + t.unit + '","' + t.qty + '","' + t.unitPrice + '","' + (t.expiryDate || '-') + '","' + t.total + '","' + t.staff + '"' + nl;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'سجل_حركات_المستورد_صيدلية_نبيلة_' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('📊 تم تحميل شيت الإكسيل بنجاح');
+    }
+
+    window.addEventListener('DOMContentLoaded', loadState);
+</script>
+</body>
+</html>
